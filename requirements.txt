@@ -1,4 +1,4 @@
 streamlit
 hugchat
-pip install streamlit-chat 
+streamlit-chat 
 streamlit-extras
