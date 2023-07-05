@@ -1,4 +1,4 @@
 streamlit
-hugchat
+-U hugchat
 streamlit-chat 
 streamlit-extras
