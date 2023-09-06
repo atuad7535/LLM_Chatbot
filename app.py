@@ -5,7 +5,7 @@ from streamlit_extras.add_vertical_space import add_vertical_space
 from hugchat import hugchat
 from hugchat.login import Login
 import os
-os.environ['CURL_CA_BUNDLE'] = ''
+# os.environ['CURL_CA_BUNDLE'] = ''
 
 
 sign = Login('anandatul502@gmail.com', 'Atul_7535')
