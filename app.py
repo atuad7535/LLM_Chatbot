@@ -1,72 +1,79 @@
 import streamlit as st
-from streamlit_chat import message
-from streamlit_extras.colored_header import colored_header
-from streamlit_extras.add_vertical_space import add_vertical_space
-from hugchat import hugchat
-from hugchat.login import Login
 import os
-# os.environ['CURL_CA_BUNDLE'] = ''
+from ctransformers import AutoModelForCausalLM
 
 
-sign = Login('anandatul502@gmail.com', 'Atul_7535')
-cookies = sign.login()
-sign.saveCookies()
- 
-
-st.set_page_config(page_title="An LLM Powered Chatbot")
-
+st.set_page_config(page_title="🦙💬 Llama 2 Chatbot")
+@st.cache_resource()
+def ChatModel(temperature, top_p):
+    return AutoModelForCausalLM.from_pretrained(
+        'ggml-llama-2-7b-chat-q4_0.bin', 
+        model_type='llama',
+        temperature=temperature, 
+        top_p = top_p)
 #Creating Visuals for Web Page
 with st.sidebar:
-    st.title('🤯 HugChat App')
+    st.title('🦙💬 Llama 2 Chatbot')
+    st.subheader('Models and parameters')
+    temperature = st.sidebar.slider('temperature', min_value=0.01, max_value=2.0, value=0.1, step=0.01)
+    top_p = st.sidebar.slider('top_p', min_value=0.01, max_value=1.0, value=0.9, step=0.01)
+    max_length = st.sidebar.slider('max_length', min_value=64, max_value=4096, value=512, step=8)
+    chat_model =ChatModel(temperature, top_p)
     st.markdown('''
     This app is an LLM-powered chatbot built using:
-    - [HugChat](<https://github.com/Soulter/hugging-chat-api>)
-    - [OpenAssistant/oasst-sft-6-llama-30b-xor](<https://huggingface.co/OpenAssistant/oasst-sft-6-llama-30b-xor>) LLM model
+    - [LLAMA2](<https://huggingface.co/docs/transformers/model_doc/llama2>)
 
 
-    💡 Highlight: No API key required 🥳
+    💡 Highlight: Llama 2 is a LLM model developed by META <https://huggingface.co/docs/transformers/model_doc/llama2>
 
     ''')
-    add_vertical_space(3)
+    st.text("")
+    st.text("")
+    st.text("")
     st.write('Made by: Atul Anand (<https://www.linkedin.com/in/atul-anand-356319163/) (<https://medium.com/@atulanand7535>)') 
 
-#Creating list to store generated and past response
 
-if 'generated' not in st.session_state:
-    st.session_state['generated']=['Hi, How may I help you?']
+# Store LLM generated responses
+if "messages" not in st.session_state.keys():
+    st.session_state.messages = [{"role": "assistant", "content": "How may I assist you today?"}]
 
-#past stores user's ques
-if 'past' not in st.session_state:
-    st.session_state['past']=['Hi']
+# Display or clear chat messages
+for message in st.session_state.messages:
+    with st.chat_message(message["role"]):
+        st.write(message["content"])
 
-input_container=st.container()
-colored_header(label='',description='',color_name='blue-30')
-response_container=st.container()
+def clear_chat_history():
+    st.session_state.messages = [{"role": "assistant", "content": "How may I assist you today?"}]
+st.sidebar.button('Clear Chat History', on_click=clear_chat_history)
 
-def get_text():
-    input_text=st.text_input("You: ","",key="input")
-    return input_text
+# Function for generating LLaMA2 response
+def generate_llama2_response(prompt_input):
+    string_dialogue = "You are a helpful assistant. You do not respond as 'User' or pretend to be 'User'. You only respond once as 'Assistant'."
+    for dict_message in st.session_state.messages:
+        if dict_message["role"] == "user":
+            string_dialogue += "User: " + dict_message["content"] + "\\n\\n"
+        else:
+            string_dialogue += "Assistant: " + dict_message["content"] + "\\n\\n"
+    output = chat_model(f"prompt {string_dialogue} {prompt_input} Assistant: ")
+    return output
 
-with input_container:
-    user_input=get_text()
+# User-provided prompt
+if prompt := st.chat_input():
+    st.session_state.messages.append({"role": "user", "content": prompt})
+    with st.chat_message("user"):
+        st.write(prompt)
 
+# Generate a new response if last message is not from assistant
+if st.session_state.messages[-1]["role"] != "assistant":
+    with st.chat_message("assistant"):
+        with st.spinner("Thinking..."):
+            response = generate_llama2_response(prompt)
+            placeholder = st.empty()
+            full_response = ''
+            for item in response:
+                full_response += item
+                placeholder.markdown(full_response)
+            placeholder.markdown(full_response)
+    message = {"role": "assistant", "content": full_response}
+    st.session_state.messages.append(message)
 
-def generate_response(prompt):
-    chatbot=hugchat.ChatBot(cookies=cookies.get_dict())
-    id = chatbot.new_conversation()
-    chatbot.change_conversation(id)
-    conversation_list = chatbot.get_conversation_list()
-    response = chatbot.chat(prompt)
-    return response
-
-with response_container:
-    if user_input:
-        response=generate_response(user_input)
-        st.session_state.past.append(user_input)
-        st.session_state.generated.append(response)
-
-
-    if st.session_state['generated']:
-        for i in range(len(st.session_state['generated'])):
-            message(st.session_state['past'][i], is_user=True, key=str(i) + '_user')
-            message(st.session_state['generated'][i], key=str(i))
